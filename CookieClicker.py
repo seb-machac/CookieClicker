@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import IntVar, StringVar
 import xml.etree.ElementTree as ET
+import math
 
 class AppInstance:
     def __init__(self, root):
@@ -11,203 +12,119 @@ class AppInstance:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.protocol("WM_CREATE_WINDOW", self.on_create)
 
-        # class Building:
-        #     _instances = set()
-        #     def __init__(self, name: str, image: str, cost: int, upgradeAmount: int):
-        #         self.name = name
-        #         self.image = tk.PhotoImage(file=image)
-        #         self.cost = cost
-        #         self.upgradeAmount = upgradeAmount
-        #         self.purchased = 0
+        class Building:
+            _instances = set()
+            def __init__(self, name: str, image: str, cost: int, upgradeAmount: int, buildingFrame, index: int, app):
+                self.name = name
+                self.image = tk.PhotoImage(file=image)
+                self.baseCost = cost
+                self.cost = cost
+                self.upgradeAmount = upgradeAmount
+                self.index = index
+                self.purchased = 0
+                self.buildingFrame = buildingFrame
+                self.app = app
 
-        #         Building._instances.add(self)
+                Building._instances.add(self)
 
-        #         self.costVar = StringVar(value=f"{self.name} Upgrade Cost: {self.cost}")
-        #         self.purchasedVar = StringVar(value=f"{self.name}s purchased: {self.purchased}")
+                self.costVar = StringVar(value=f"{self.name} Upgrade Cost: {self.cost}")
+                self.purchasedVar = StringVar(value=f"{self.name}s purchased: {self.purchased}")
 
-        #     @classmethod
-        #     def getAllInstances(cls):
-        #         return list(cls._instances)
+            def purchase(self):
+                if self.app.cookies >= self.cost:
+                    self.app.perclick += self.upgradeAmount
+                    self.purchased += 1
+                    self.app.cookies -= self.cost
+                    self.cost = math.ceil(self.baseCost * (1.15**self.purchased))
+                    self.updateVars()
+                    self.app.updateLabels()
 
-        #     #create stat labels
-        #     #buy button
-        #     #increase per click
-#=================================App Default Stats=================================
-        #User Stats
+            def updateVars(self):
+                self.costVar.set(f"{self.name} Upgrade Cost: {self.cost}")
+                self.purchasedVar.set(f"{self.name}s purchased: {self.purchased}")
+
+            def createFrame(self):
+                frame = tk.Frame(self.buildingFrame, borderwidth=4, relief="sunken")
+                frame.grid(row=self.index, column=1, sticky='W')
+
+                buyButton = tk.Button(frame, text=f'Buy\n{self.name}', command=self.purchase, height=2)
+                buyButton.grid(rowspan=2, row=1, column=1)
+
+                imageLabel = tk.Label(frame, image=self.image)
+                imageLabel.grid(rowspan=2, row=1, column=2)
+
+                costLabel = tk.Label(frame, textvariable=self.costVar, font=("Arial", 12), anchor="w")
+                costLabel.grid(row=1, column=3)
+
+                purchasedLabel = tk.Label(frame, textvariable=self.purchasedVar, font=("Arial", 12), anchor="w")
+                purchasedLabel.grid(row=2, column=3)
+
+            @classmethod
+            def getAllInstances(cls):
+                return list(cls._instances)
+            
+#=================================User Default Stats=================================
+
         self.cookies = 0
         self.perclick = 1
         self.persecond = 0
         
-        #Building Stats
-        self.buildings = ["Pointer", "Grandma", "Farm", "Factory"]
-        self.buildingsPurchased = {
-            "Pointer": 0,
-            "Grandma": 0,
-            "Farm": 0,
-            "Factory": 0
-        }
-        self.upgradeCosts = {
-            "Pointer": 5,
-            "Grandma": 25,
-            "Farm": 100,
-            "Factory": 1000
-        }
-        self.upgradeAmount = {
-            "Pointer": 1,
-            "Grandma": 5,
-            "Farm": 25,
-            "Factory": 50
-        }
-        # Grandma = Building("Grandma", "Grandma.png", 5, 5)
-
-#        for i in Building._instances:
-#iterate through instances of Building and create neccessary labels and buttons for it
-#use two frames, one for main cookie and cookie stats, other for Building stats and buying
-#in second frame could potentailly add extra frame per building instance for organisation
-#https://www.pythontutorial.net/tkinter/tkinter-frame/
-#currently moving buildings into single sub-class
-#currently working as intended, no bugs known
 #=================================TK Images=================================
 
         self.cookieImage = tk.PhotoImage(file="Cookie.png").subsample(2)
-        self.pointerImage = tk.PhotoImage(file="Pointer.png")
-        self.grandmaImage = tk.PhotoImage(file="Grandma.png")
-        self.farmImage = tk.PhotoImage(file="Farm.png")
-        self.factoryImage = tk.PhotoImage(file="Factory.png")
-
 
 #=================================TK Vars=================================
 
         self.cookiesVar = StringVar(value=f"Cookies: {self.cookies}")
         self.perclickVar = StringVar(value=f"Per Click: {self.perclick}")
-        
-        self.pointerUpgradeCostVar = StringVar(value=f"Pointer Upgrade Cost: {self.upgradeCosts["Pointer"]}")
-        self.pointersPurchasedVar = StringVar(value=f"Pointers Purchased: {self.buildingsPurchased["Pointer"]}")
-
-        self.grandmaUpgradeCostVar = StringVar(value=f"Grandma Upgrade Cost: {self.upgradeCosts["Grandma"]}")
-        self.grandmasPurchasedVar = StringVar(value=f"Grandmas Purchased: {self.buildingsPurchased["Grandma"]}")
-
-        self.farmUpgradeCostVar = StringVar(value=f"Farm Upgrade Cost: {self.upgradeCosts["Farm"]}")
-        self.farmsPurchasedVar = StringVar(value=f"Farms Purchased: {self.buildingsPurchased["Farm"]}")
-
-        self.factoryUpgradeCostVar = StringVar(value=f"Factory Upgrade Cost: {self.upgradeCosts["Factory"]}")
-        self.factoriesPurchasedVar = StringVar(value=f"Factories Purchased: {self.buildingsPurchased["Factory"]}")
 
 #=================================TK UI=================================
-
-        #Cookie Frame
         self.cookieFrame = tk.Frame(root)
-        self.cookieFrame.grid(row=1)
+        self.cookieFrame.grid(row=0, column=1)
+
+#--------------------------------Stat Frame-----------------------------
+        self.cookieStatFrame = tk.Frame(self.cookieFrame)
+        self.cookieStatFrame.grid(row=1)
+
         #Cookie Stat Label
-        self.cookiesLabel = tk.Label(root, textvariable=self.cookiesVar, font=("Arial", 12), anchor="center")
-        self.cookiesLabel.place(x=40, y=100, width=100, height=24)
+        self.cookiesLabel = tk.Label(self.cookieStatFrame, textvariable=self.cookiesVar, font=("Arial", 12), anchor="center")
+        self.cookiesLabel.grid(row=1, column=1)
 
         #Per Click Label
-        self.perclickLabel = tk.Label(root, textvariable=self.perclickVar, font=("Arial", 12), anchor="center")
-        self.perclickLabel.place(x=190, y=100, width=100, height=24)
+        self.perclickLabel = tk.Label(self.cookieStatFrame, textvariable=self.perclickVar, font=("Arial", 12), anchor="center")
+        self.perclickLabel.grid(row=1, column=2, padx=5)
         
+#------------------------------Cookie Button Frame----------------------
+        self.cookieButtonFrame = tk.Frame(self.cookieFrame)
+        self.cookieButtonFrame.grid(row=2)
+
         #Cookie Button
-        self.clickButton = tk.Button(root, text="Click", image=self.cookieImage, command=self.click)
-        self.clickButton.place(x=20, y=140, width=300, height=300)
-
-        #-----------------Pointer-----------------
-        #Pointer Upgrade Cost Label
-        self.PointerUpgradeCostLabel = tk.Label(root, textvariable=self.pointerUpgradeCostVar, font=("Arial", 12), anchor="w")
-        self.PointerUpgradeCostLabel.place(x=510, y=170, width=250, height=20)
+        self.clickButton = tk.Button(self.cookieButtonFrame, text="Click", image=self.cookieImage, command=self.click)
+        self.clickButton.pack()
         
-        #Pointer Upgrade Button
-        self.PointerUpgradeButton = tk.Button(root, text="Buy\nPointer", command=lambda: self.upgradeBuilding("Pointer"), font=("Arial", 12))
-        self.PointerUpgradeButton.place(x=340, y=150, width=100, height=50)
+#---------------------------------Building Frame------------------------
+        self.buildingFrame = tk.Frame(root, bg="lightblue")
+        self.buildingFrame.grid(row=0, column=2, sticky="NS")
 
-        #Pointer Image
-        self.PointerImageLabel = tk.Label(root, image=self.pointerImage)
-        self.PointerImageLabel.place(x=450, y=150, width=50, height=50)
+        #Buildings Inits
+        Pointer = Building("Pointer", "Pointer.png", 15, 1, self.buildingFrame,0, self)
+        Grandma = Building("Grandma", "Grandma.png", 100, 5, self.buildingFrame, 1, self)
+        Grandma = Building("Farm", "Farm.png", 1100, 25, self.buildingFrame, 2, self)
+        Grandma = Building("Factory", "Factory.png", 130000, 50, self.buildingFrame, 3, self)
 
-        #Pointers Purchased Label
-        self.PointersPurchasedLabel = tk.Label(root, textvariable=self.pointersPurchasedVar, font=("Arial", 12), anchor="w")
-        self.PointersPurchasedLabel.place(x=510, y=150, width=200, height=20)
+        #Building Frame Gen
+        for i, BuildingIter in enumerate(Building.getAllInstances()):
+            BuildingIter.createFrame()
 
-
-        #-----------------Grandma-----------------
-        #Grandma Upgrade Cost Label
-        self.GrandmaUpgradeCostLabel = tk.Label(root, textvariable=self.grandmaUpgradeCostVar, font=("Arial", 12), anchor="w")
-        self.GrandmaUpgradeCostLabel.place(x=510, y=250, width=250, height=20)
-
-        #Grandma Upgrade Button
-        self.GrandmaUpgradeButton = tk.Button(root, text="Buy\nGrandma", command=lambda: self.upgradeBuilding("Grandma"), font=("Arial", 12))
-        self.GrandmaUpgradeButton.place(x=340, y=230, width=100, height=50)
-
-        #Grandma Image
-        self.GrandmaImageLabel = tk.Label(root, image=self.grandmaImage)
-        self.GrandmaImageLabel.place(x=450, y=230, width=50, height=50)
-        
-        #Grandmas Purchased Label
-        self.GrandmasPurchasedLabel = tk.Label(root, textvariable=self.grandmasPurchasedVar, font=("Arial", 12), anchor="w")
-        self.GrandmasPurchasedLabel.place(x=510, y=230, width=200, height=20)
-
-
-        #-----------------Farm-----------------
-        #Farm Upgrade Cost Label
-        self.FarmUpgradeCostLabel = tk.Label(root, textvariable=self.farmUpgradeCostVar, font=("Arial", 12), anchor="w")
-        self.FarmUpgradeCostLabel.place(x=510, y=330, width=250, height=20)
-
-        #Farm Upgrade Button
-        self.FarmUpgradeButton = tk.Button(root, text="Buy\nFarm", command=lambda: self.upgradeBuilding("Farm"), font=("Arial", 12))
-        self.FarmUpgradeButton.place(x=340, y=310, width=100, height=50)
-
-        #Farm Image Label
-        self.FarmImageLabel = tk.Label(root, image=self.farmImage)
-        self.FarmImageLabel.place(x=450, y=310, width=50, height=50)
-
-        #Farms Purchased Label
-        self.FarmsPurchasedLabel = tk.Label(root, textvariable=self.farmsPurchasedVar, font=("Arial", 12), anchor="w")
-        self.FarmsPurchasedLabel.place(x=510, y=310, width=200, height=20)
-
-
-        #-----------------Factory-----------------
-        #Factory Upgrade Cost Label
-        self.FactoryUpgradeCostLabel = tk.Label(root, textvariable=self.factoryUpgradeCostVar, font=("Arial", 12), anchor="w")
-        self.FactoryUpgradeCostLabel.place(x=510, y=410, width=250, height=20)
-
-        #Factory Upgrade Button
-        self.FactoryUpgradeButton = tk.Button(root, text="Buy\nFactory", command=lambda: self.upgradeBuilding("Factory"), font=("Arial", 12))
-        self.FactoryUpgradeButton.place(x=340, y=390, width=100, height=50)
-
-        #Factory Image Label
-        self.FactoryImageLabel = tk.Label(root, image=self.factoryImage)
-        self.FactoryImageLabel.place(x=450, y=390, width=50, height=50)
-
-        #Factories Purchased Label
-        self.FactoriesPurchasedLabel = tk.Label(root, textvariable=self.factoriesPurchasedVar, font=("Arial", 12), anchor="w")
-        self.FactoriesPurchasedLabel.place(x=510, y=390, width=200, height=20)
-
-#=================================Functions=================================
+#============Functions=================================
 
     def updateLabels(self):
         self.cookiesVar.set(f"Cookies: {self.cookies}")
         self.perclickVar.set(f"Per Click: {self.perclick}")
-        self.pointerUpgradeCostVar.set(f"Pointer Upgrade Cost: {self.upgradeCosts["Pointer"]}")
-        self.pointersPurchasedVar.set(f"Pointers Purchased: {self.buildingsPurchased["Pointer"]}")
-        self.grandmaUpgradeCostVar.set(f"Grandma Upgrade Cost: {self.upgradeCosts["Grandma"]}")
-        self.grandmasPurchasedVar.set(f"Grandmas Purchased: {self.buildingsPurchased["Grandma"]}")
-        self.farmUpgradeCostVar.set(f"Farm Upgrade Cost: {self.upgradeCosts["Farm"]}")
-        self.farmsPurchasedVar.set(f"Farms Purchased: {self.buildingsPurchased["Farm"]}")
-        self.factoryUpgradeCostVar.set(f"Factory Upgrade Cost: {self.upgradeCosts["Factory"]}")
-        self.factoriesPurchasedVar.set(f"Factories Purchased: {self.buildingsPurchased["Factory"]}")
-
 
     def click(self):
         self.cookies += self.perclick
         self.updateLabels()
-
-
-    def upgradeBuilding(self, building):
-        if self.cookies >= self.upgradeCosts[building]:
-            self.perclick += self.upgradeAmount[building]
-            self.buildingsPurchased[building] += 1
-            self.cookies = self.cookies - self.upgradeCosts[building]
-            self.upgradeCosts[building] *= 2
-            self.updateLabels()
 
     def run(self):
         self.root.mainloop()
