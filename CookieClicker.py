@@ -3,6 +3,7 @@ from tkinter import IntVar, StringVar
 import xml.etree.ElementTree as ET
 import math
 import time
+from PIL import Image, ImageTk
 
 class AppInstance:
     def __init__(self, root):
@@ -46,8 +47,7 @@ class AppInstance:
                 self.costVar.set(f"{self.name} Upgrade Cost: {self.cost}")
                 self.purchasedVar.set(f"{self.name}s purchased: {self.purchased}")
 
-            def createFrame(self):
-                frame = tk.Frame(self.buildingFrame, borderwidth=4, relief="sunken")
+            def createFrame(self, frame):
                 frame.grid(row=self.index, column=1, sticky='W')
 
                 buyButton = tk.Button(frame, text=f'Buy\n{self.name}', command=self.purchase, height=2)
@@ -66,6 +66,48 @@ class AppInstance:
             def getAllInstances(cls):
                 return list(cls._instances)
 
+        class Pointers:
+            _instances = set()
+            def __init__(self, root, index, app, frame, axis, image):
+                self.root = root
+                self.index = index
+                self.app = app
+                self.frame = frame
+                self.axis = axis
+                self.ogImage = Image.open(image).convert("RGBA")
+                self.angle = 0
+                self.rotationSpeed = 2
+
+                self.canvas = tk.Canvas(self.frame, bg="white")
+                self.canvas.pack()
+
+                Pointers._instances.add(self)
+            
+            
+            def startAnim(self):
+                self.updateRotation()
+
+            def stopAnim(self):
+                pass
+
+            def updateRotation(self):
+                rotated = self.ogImage.rotate(self.angle, expand=True)
+                
+                self.tkImage = tk.PhotoImage(rotated)
+                
+                self.canvas.delete("all")
+
+                frame_center_x = self.frame.winfo_width() // 2
+                frame_center_y = self.frame.winfo_height() // 2
+
+                self.canvas.create_image(frame_center_x, frame_center_y, image=self.tkImage)
+
+                self.angle = (self.angle + self.rotationSpeed) % 360
+
+                if app.running:
+                    self.root.after(50,self.updateRotation)
+
+
         self.Building = Building
             
 #=================================User Default Stats=================================
@@ -78,7 +120,7 @@ class AppInstance:
         
 #=================================TK Images=================================
 
-        self.cookieImage = tk.PhotoImage(file="Cookie.png").subsample(2)
+        self.cookieImage = tk.PhotoImage(file="./Assets/Cookie.png").subsample(2)
 
 #=================================TK Vars=================================
 
@@ -122,14 +164,14 @@ class AppInstance:
         self.buildingFrame.grid(row=0, column=2, sticky="NS")
 
         #Buildings Inits
-        Pointer = Building("Pointer", "Pointer.png", 15, 0.1, 1, self.buildingFrame,0, self)
-        Grandma = Building("Grandma", "Grandma.png", 100, 1, 5, self.buildingFrame, 1, self)
-        Grandma = Building("Farm", "Farm.png", 1100, 8, 25, self.buildingFrame, 2, self)
-        Grandma = Building("Factory", "Factory.png", 130000, 260, 50, self.buildingFrame, 3, self)
+        self.Pointer = Building("Pointer", "./Assets/Pointer.png", 15, 0.1, 1, self.buildingFrame,0, self)
+        self.Grandma = Building("Grandma", "./Assets/Grandma.png", 100, 1, 5, self.buildingFrame, 1, self)
+        self.Farm = Building("Farm", "./Assets/Farm.png", 1100, 8, 25, self.buildingFrame, 2, self)
+        self.Factory = Building("Factory", "./Assets/Factory.png", 130000, 260, 50, self.buildingFrame, 3, self)
 
         #Building Frame Gen
         for i, BuildingIter in enumerate(Building.getAllInstances()):
-            BuildingIter.createFrame()
+            BuildingIter.createFrame(self.buildingFrame)
 
 #============Functions=================================
 
@@ -143,7 +185,16 @@ class AppInstance:
         self.updateLabels()
 
     def run(self):
+        self.pointer_anims()
         self.root.mainloop()
+        
+
+    def pointer_anims(self):
+        print(f'Pointers: {self.Pointer}')
+        for i PointerIter in self.Pointer.purchased:
+            
+        if self.running:
+            self.buildingFrame.after(100, self.pointer_anims)
 
     def tick(self):
         if not self.running:
@@ -162,6 +213,7 @@ class AppInstance:
         elif not self.running:
             self.running = True
             self.tick()
+            self.pointer_anims()
         else:
             print("unknown running value")
             self.running = False
@@ -224,10 +276,10 @@ class AppInstance:
                 self.perSecondTemp = data.findtext("perSecond")
                 self.perSecond = 0 if self.perSecondTemp == None else float(self.perSecondTemp)
                 print("m")
-                for buildingData in data.findall('buildingData'):
-                    for building in buildingData:
-                        self.Building(str(building.findtext('name')), str(building.findtext("image")), int(building.findtext('cost')), float(building.findtext('perSecond')), int(building.findtext('perClick')), self.buildingFrame, int(building.findtext('index')), self)
-                    print(self.Building.getAllInstances())
+                # for buildingData in data.findall('buildingData'):
+                    # for building in buildingData:
+                    #     self.Building(str(building.findtext('name')), str(building.findtext("image")), int(building.findtext('cost')), float(building.findtext('perSecond')), int(building.findtext('perClick')), self.buildingFrame, int(building.findtext('index')), self)
+                    # print(self.Building.getAllInstances())
                         
 
                 # for i, buildingIter in enumerate(self.Building.getAllInstances()):
